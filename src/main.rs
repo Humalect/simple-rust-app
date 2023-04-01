@@ -1,26 +1,31 @@
-// fn main() {
-//     println!("Hello, World!");
-// }
+use axum::{extract::Query, http::StatusCode, routing::get, Json, Router};
+use serde::Serialize;
+use std::collections::HashMap;
 
-use warp::{Filter};
-
+#[derive(Serialize)]
+struct Msg {
+    message: String,
+}
 
 #[tokio::main]
 async fn main() {
-    // GET /hello/warp => 200 OK with body "Hello, warp!"
-    let hello = warp::path!("hello" / String)
-        .map(|name| format!("Hello, {}!", name));
+    let app = Router::new().route("/", get(handler));
 
-    let routes =
-        warp::
-        get()
-            .and(hello);
+    println!("Rust REST service started...");
+    axum::Server::bind(&"0.0.0.0:8080".parse().unwrap())
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
+}
 
-    let (host , port) = ([0,0,0,0], 8080);
+async fn handler(Query(params): Query<HashMap<String, String>>) -> (StatusCode, Json<Msg>) {
+    let name = match params.get("name") {
+        Some(value) => value,
+        None => "World",
+    };
+    let msg = Msg {
+        message: format!("Hello {}!", name.trim()),
+    };
 
-    println!("Starting server on: {}:{}", host.map(|a| a.to_string()).join("."), port);
-    warp::serve(routes)
-        .run((host, port))
-        .await;
-
+    (StatusCode::OK, Json(msg))
 }
